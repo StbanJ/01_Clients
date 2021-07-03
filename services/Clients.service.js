@@ -2,34 +2,64 @@ const { MongoConnection } = require("../lib/Mongo");
 var ObjectId = require("mongodb").ObjectID;
 //Collection
 const COLLECTION = "clients";
+var randtoken = require('rand-token');
 
-const findUsers = () =>
+const findUsers = (id) =>
   new Promise(async (resolve, reject) => {
     try {
-      // Inicializa mongocliente para que me retorne la configuracion de la db
+      //Inicializo MongoClient para que me retorne la Base de Datos
       const DB = await MongoConnection();
-      // Obtenemos la coleccion
+      //Obtenemos la collection
       const clients = DB.collection(COLLECTION);
+
       const clientsList = await clients.find({}).toArray();
+
+      if (id != undefined) {
+        var filterResult = clientsList.filter((persona) => persona._id == id);
+        resolve(filterResult);
+      }
+
       resolve(clientsList);
     } catch (error) {
       reject(error);
     }
   });
 
-const createUser = (user) =>
+const createUser = (
+  primer_nombre,
+  segundo_nombre,
+  primer_apellido,
+  segundo_apellido
+) =>
   new Promise(async (resolve, reject) => {
     try {
       const DB = await MongoConnection();
       const clients = DB.collection(COLLECTION);
-      const result = await clients.insertOne(user);
+      var token = randtoken.generate(16);
+      const result = await clients.insertOne({
+        primer_nombre: primer_nombre,
+        segundo_nombre: segundo_nombre,
+        primer_apellido: primer_apellido,
+        segundo_apellido: segundo_apellido,
+        codigo_acceso: token,
+        password: token,
+        //Se le asigna siempre el rol de Cliente por defecto
+        rol: "60e0d02f89107449e88bb78c", 
+        nuevo_usuario: true,
+      });
       resolve(result);
     } catch (error) {
       reject(error);
     }
   });
 
-const updateUser = (id, nombre, apellido) =>
+const updateUser = (
+  id,
+  primer_nombre,
+  segundo_nombre,
+  primer_apellido,
+  segundo_apellido
+) =>
   new Promise(async (resolve, reject) => {
     try {
       const DB = await MongoConnection();
@@ -37,7 +67,12 @@ const updateUser = (id, nombre, apellido) =>
       const result = await clients.updateOne(
         { _id: ObjectId(id) },
         {
-          $set: { nombre: nombre, apellido: apellido },
+          $set: {
+            primer_nombre: primer_nombre,
+            segundo_nombre: segundo_nombre,
+            primer_apellido: primer_apellido,
+            segundo_apellido: segundo_apellido,
+          },
         }
       );
       resolve(result);
@@ -45,6 +80,7 @@ const updateUser = (id, nombre, apellido) =>
       reject(error);
     }
   });
+
 const deleteUser = (id) =>
   new Promise(async (resolve, reject) => {
     try {
@@ -57,9 +93,37 @@ const deleteUser = (id) =>
     }
   });
 
+const change_password = (id, new_password, repeat_password) =>
+  new Promise(async (resolve, reject) => {
+    try {
+      const DB = await MongoConnection();
+      const clients = DB.collection(COLLECTION);
+      if (new_password === repeat_password) {
+        const result = await clients.updateOne(
+          { _id: ObjectId(id) },
+          {
+            $set: {
+              password: new_password,
+              nuevo_usuario: false,
+            },
+          }
+        );
+        resolve(result);
+      } else {
+        let error = {
+          msg: "error",
+        };
+        resolve(error);
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+
 module.exports = {
   findUsers,
   createUser,
   updateUser,
   deleteUser,
+  change_password,
 };
